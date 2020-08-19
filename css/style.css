@@ -1,0 +1,13 @@
+body {
+    text-align: center;
+}
+
+p {
+    font-size: 20px;
+}
+
+.lives {
+    height:auto;
+    width: 50px;
+
+}
