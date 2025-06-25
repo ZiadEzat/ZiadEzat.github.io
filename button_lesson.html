@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Arduino Buttons & Traffic Lights!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .interactive-code .code-line:hover { background-color: #fefcbf; cursor: pointer; }
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .has-tooltip:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        /* Custom styles for the push button visual */
+        .push-button-visual {
+            background-color: #ef4444; /* red-500 */
+            color: white;
+            font-weight: bold;
+            padding: 1rem 2.5rem; /* py-4 px-10 */
+            border-radius: 9999px; /* rounded-full */
+            box-shadow: 0 6px 0 #dc2626; /* Deeper red for 3D effect */
+            transform: translateY(0);
+            transition: all 0.1s ease-out;
+            cursor: pointer;
+            border: none;
+        }
+        .push-button-visual:active {
+            box-shadow: 0 2px 0 #dc2626;
+            transform: translateY(4px);
+        }
+
+        /* Internal Button Visuals */
+        .button-casing {
+            width: 80px;
+            height: 60px;
+            background-color: #cbd5e1; /* slate-300 */
+            border-radius: 8px;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button-plunger {
+            width: 40px;
+            height: 40px;
+            background-color: #ef4444; /* red-500 */
+            border-radius: 50%;
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%) translateY(0);
+            transition: transform 0.1s ease-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 2;
+        }
+        .button-plunger.pressed {
+            transform: translateX(-50%) translateY(10px); /* Move down when pressed */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        .contact-point, .fixed-contact {
+            width: 15px;
+            height: 15px;
+            background-color: #64748b; /* slate-600 */
+            border-radius: 50%;
+            position: absolute;
+            border: 2px solid #475569; /* slate-700 */
+            transition: background-color 0.1s ease-out;
+        }
+        .contact-point {
+            top: 40px; /* Position relative to casing */
+            left: calc(50% - 20px);
+            z-index: 1;
+        }
+        .fixed-contact {
+            top: 40px;
+            left: calc(50% + 5px);
+        }
+        .contact-point.connected {
+            background-color: #facc15; /* yellow-400 */
+        }
+        .fixed-contact.connected {
+            background-color: #facc15; /* yellow-400 */
+        }
+        /* Button connection wires */
+        .button-wire {
+            width: 20px;
+            height: 2px;
+            background-color: #475569;
+            position: absolute;
+        }
+        .wire-left {
+            top: 47px;
+            left: -18px;
+            transform: rotate(20deg);
+        }
+        .wire-right {
+            top: 47px;
+            right: -18px;
+            transform: rotate(-20deg);
+        }
+
+        /* Traffic Light Visuals */
+        .traffic-light-housing {
+            background-color: #1f2937; /* gray-900 */
+            border-radius: 1rem;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            align-items: center;
+        }
+        .traffic-light-bulb {
+            width: 4rem;
+            height: 4rem;
+            border-radius: 50%;
+            background-color: #374151; /* gray-700 (off state) */
+            border: 2px solid #4b5563; /* gray-600 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            color: #d1d5db; /* gray-400 */
+            transition: background-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+        }
+        .traffic-light-bulb.red { background-color: #ef4444; box-shadow: 0 0 15px #dc2626; } /* red-500 */
+        .traffic-light-bulb.yellow { background-color: #facc15; box-shadow: 0 0 15px #eab308; } /* yellow-400 */
+        .traffic-light-bulb.green { background-color: #22c55e; box-shadow: 0 0 15px #16a34a; } /* green-500 */
+
+        .manual-control-button {
+            @apply bg-gray-200 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-300 transition-colors transform active:scale-95;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto px-4 py-8 md:py-16 max-w-4xl">
+
+        <!-- Section 1: Welcome -->
+        <section class="text-center mb-16 md:mb-24">
+                    <p class="text-lg md:text-xl text-slate-600 mb-8">Willy Robotics Academy presents: </p>
+            <h1 class="text-4xl md:text-6xl font-bold text-blue-600 mb-4">BUTTONS!</h1>
+
+            <p class="text-lg md:text-xl font-semibold mb-4">What do all these things have in common?</p>
+            <div id="intro-icons" class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto mb-6">
+                <div class="icon-card bg-white p-4 rounded-xl shadow-md cursor-pointer flex justify-center items-center h-24 text-4xl transition-transform transform hover:scale-105">🎮</div>
+                <div class="icon-card bg-white p-4 rounded-xl shadow-md cursor-pointer flex justify-center items-center h-24 text-4xl transition-transform transform hover:scale-105">📺</div>
+                <div class="icon-card bg-white p-4 rounded-xl shadow-md cursor-pointer flex justify-center items-center h-24 text-4xl transition-transform transform hover:scale-105">💡</div>
+                <div class="icon-card bg-white p-4 rounded-xl shadow-md cursor-pointer flex justify-center items-center h-24 text-4xl transition-transform transform hover:scale-105">Elevator</div>
+            </div>
+            <div id="intro-answer" class="text-2xl font-bold text-teal-500 h-8"></div>
+        </section>
+
+        <!-- Section 2: How a Button Works -->
+        <section class="mb-16 md:mb-24">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-2">What is a push button?</h2>
+            <p class="text-center text-slate-600 mb-8">A button is just a switch. When you push it, it's like closing a door to let electricity flow!</p>
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <div class="flex flex-col items-center justify-center gap-4 mb-8">
+                    <div class="relative flex items-center justify-center gap-10">
+                        <div class="font-bold text-yellow-500">⚡️ 5V</div>
+                        <div class="w-16 h-2 bg-slate-400 rounded"></div>
+
+                        <!-- Animated Internal Button Visual -->
+                        <div class="button-casing flex items-center justify-center">
+                            <div class="button-plunger" id="button-plunger"></div>
+                            <div class="contact-point" id="moving-contact"></div>
+                            <div class="fixed-contact" id="fixed-contact"></div>
+                        </div>
+
+                        <div class="w-16 h-2 bg-slate-400 rounded"></div>
+                        <div id="led-light" class="w-12 h-12 rounded-full bg-slate-300 transition-colors duration-300 flex items-center justify-center text-2xl">💡</div>
+                        <div class="w-16 h-2 bg-slate-400 rounded"></div>
+                        <div class="font-bold text-slate-500">GND</div>
+                    </div>
+                </div>
+                <div class="text-center mt-6">
+                    <button id="push-me-button" class="push-button-visual">PUSH ME!</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- NEW Section 3: Your First Button & LED! -->
+        <section class="mb-16 md:mb-24">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-2">Your First Button & LED!</h2>
+            <p class="text-center text-slate-600 mb-8">Let's start with a simple project: turning on one LED with one button. This is a great way to learn the basics!</p>
+            <div class="bg-white p-6 rounded-xl shadow-lg">
+                <h3 class="text-2xl font-semibold mb-4 text-center">Build the Circuit:</h3>
+                <p class="text-center text-slate-600 mb-6">Here's how to connect your Arduino for a simple button and LED project. You'll need one push button, one LED, one 220 Ohm resistor, and one 10k Ohm resistor.</p>
+                <div class="flex justify-center mb-8">
+                    <!-- Placeholder image for the user's provided circuit diagram -->
+                    <img src="https://csg.tinkercad.com/things/9lfJOsJYn1b/t725.png?rev=1566602409406000000&s=&v=1&type=circuits" alt="Basic Button and LED Circuit (Placeholder)" class="w-full max-w-xl rounded-lg shadow-inner border border-slate-200">
+                </div>
+                <h3 class="text-2xl font-semibold mb-4 text-center">Code Your First Button!</h3>
+                <p class="text-center text-slate-600 mb-8">This code reads the button and turns the LED on or off. Hover over the lines to learn what they mean!</p>
+                <div class="bg-gray-800 text-white p-6 rounded-xl shadow-lg font-mono text-sm interactive-code overflow-x-auto">
+                    <pre><code id="basic-code-block">
+<span class="code-line has-tooltip">int buttonPin = 2;   // We tell the Arduino which pin our button is connected to.
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">This line gives a name to the Arduino pin connected to our button.</span>
+</span>
+<span class="code-line has-tooltip">int ledPin = 13;     // And which pin our LED is connected to (the built-in one).
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">This line gives a name to the Arduino pin connected to our LED.</span>
+</span>
+
+<span class="code-line has-tooltip">void setup() {
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">The 'setup' part runs only once when the Arduino first turns on.</span>
+</span>
+<span class="code-line has-tooltip">  pinMode(buttonPin, INPUT); // We tell the Arduino that the button pin will be an INPUT (it's getting information).
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We tell Arduino that the button pin will receive signals (INPUT).</span>
+</span>
+<span class="code-line has-tooltip">  pinMode(ledPin, OUTPUT);   // And the LED pin will be an OUTPUT (it's sending information to turn on/off).
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We tell Arduino that the LED pin will send signals (OUTPUT).</span>
+</span>
+<span class="code-line has-tooltip">}
+
+</span>
+<span class="code-line has-tooltip">void loop() {
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">The 'loop' part runs over and over again, super fast!</span>
+</span>
+<span class="code-line has-tooltip">  int buttonState = digitalRead(buttonPin); // The Arduino checks if the button is pressed or not.
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">This reads the button's state: HIGH (pressed) or LOW (not pressed).</span>
+</span>
+<span class="code-line has-tooltip">  if (buttonState == HIGH) { // If the button is pressed (HIGH is 1)
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">If the button is pressed, do this...</span>
+</span>
+<span class="code-line has-tooltip">    digitalWrite(ledPin, HIGH); // Turn the LED ON!
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">...turn the LED ON!</span>
+</span>
+<span class="code-line has-tooltip">  } else {
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">Otherwise (if the button is not pressed)...</span>
+</span>
+<span class="code-line has-tooltip">    digitalWrite(ledPin, LOW);  // Turn the LED OFF!
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">...turn the LED OFF!</span>
+</span>
+<span class="code-line has-tooltip">  }
+</span>
+<span class="code-line has-tooltip">  delay(10); // A small pause to make sure everything works smoothly
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">A tiny pause to keep things smooth.</span>
+</span>
+<span class="code-line has-tooltip">}
+</span>
+                    </code></pre>
+                </div>
+                <h3 class="text-2xl font-semibold mt-8 mb-4 text-center">Try it now!</h3>
+                <p class="text-center text-slate-600 mb-8">Click the button to turn the LED on and off!</p>
+                <div class="bg-slate-100 p-8 rounded-xl shadow-inner flex flex-col items-center gap-6">
+                    <div id="virtual-basic-led" class="w-24 h-24 rounded-full bg-slate-300 border-4 border-slate-400 transition-all duration-200 flex items-center justify-center">
+                        <span class="text-slate-500 text-base font-semibold">OFF</span>
+                    </div>
+                    <button id="virtual-basic-button" class="push-button-visual bg-blue-500 hover:bg-blue-600">Click Me!</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Original Section 3 (now Section 4): Build the Traffic Lights Circuit -->
+        <section class="mb-16 md:mb-24">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-2">Let's Build Traffic Lights!</h2>
+            <p class="text-center text-slate-600 mb-8">Follow these steps to connect your Arduino for a traffic light!</p>
+            <div class="bg-white p-6 rounded-xl shadow-lg md:flex md:gap-8">
+                <div class="md:w-1/2 mb-6 md:mb-0">
+                    <img id="traffic-circuit-step-image" src="https://placehold.co/600x400/e2e8f0/475569?text=Start+Traffic+Light+Circuit" alt="Traffic Light Circuit build step" class="w-full rounded-lg shadow-inner">
+                </div>
+                <div class="md:w-1/2">
+                    <div id="traffic-instructions">
+                        <!-- Instructions will be populated by JS -->
+                    </div>
+                    <button id="traffic-next-step-button" class="mt-4 w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">Start Building</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Original Section 4 (now Section 5): The Traffic Light Code -->
+        <section class="mb-16 md:mb-24">
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-2">Coding Our Traffic Lights!</h2>
+            <p class="text-center text-slate-600 mb-8">This code uses buttons to control our traffic lights. Hover over the lines to learn what they mean!</p>
+            <div class="bg-gray-800 text-white p-6 rounded-xl shadow-lg font-mono text-sm interactive-code overflow-x-auto">
+                <pre><code id="traffic-code-block">
+<span class="code-line has-tooltip">int redLedPin = 9;   // Pin for Red LED
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">This tells the Arduino which pin is connected to the Red LED.</span>
+</span>
+<span class="code-line has-tooltip">int yellowLedPin = 10; // Pin for Yellow LED
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">This tells the Arduino which pin is connected to the Yellow LED.</span>
+</span>
+<span class="code-line has-tooltip">int greenLedPin = 11; // Pin for Green LED
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">This tells the Arduino which pin is connected to the Green LED.</span>
+</span>
+
+<span class="code-line has-tooltip">int redButtonPin = 2; // Pin for Red button
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We pick pin 2 for our Red light button.</span>
+</span>
+<span class="code-line has-tooltip">int yellowButtonPin = 3; // Pin for Yellow button
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We pick pin 3 for our Yellow light button.</span>
+</span>
+<span class="code-line has-tooltip">int greenButtonPin = 4; // Pin for Green button
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We pick pin 4 for our Green light button.</span>
+</span>
+
+<span class="code-line has-tooltip">void setup() {
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">The 'setup' part runs only once when the Arduino first turns on.</span>
+</span>
+<span class="code-line has-tooltip">  pinMode(redLedPin, OUTPUT);
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We tell Arduino to send power OUT to the Red LED.</span>
+</span>
+<span class="code-line has-tooltip">  pinMode(yellowLedPin, OUTPUT);
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We tell Arduino to send power OUT to the Yellow LED.</span>
+</span>
+<span class="code-line has-tooltip">  pinMode(greenLedPin, OUTPUT);
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We tell Arduino to send power OUT to the Green LED.</span>
+</span>
+
+<span class="code-line has-tooltip">  pinMode(redButtonPin, INPUT); // Button pins are INPUTS
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We set the Red button's pin to be an INPUT, because it sends information IN to Arduino.</span>
+</span>
+<span class="code-line has-tooltip">  pinMode(yellowButtonPin, INPUT);
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We set the Yellow button's pin to be an INPUT.</span>
+</span>
+<span class="code-line has-tooltip">  pinMode(greenButtonPin, INPUT);
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">We set the Green button's pin to be an INPUT.</span>
+</span>
+<span class="code-line has-tooltip">}
+
+</span>
+<span class="code-line has-tooltip">void loop() {
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">The 'loop' part runs over and over again, checking buttons and changing lights!</span>
+</span>
+<span class="code-line has-tooltip">  int redButtonState = digitalRead(redButtonPin);
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">Read if the Red button is pressed.</span>
+</span>
+<span class="code-line has-tooltip">  int yellowButtonState = digitalRead(yellowButtonPin);
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">Read if the Yellow button is pressed.</span>
+</span>
+<span class="code-line has-tooltip">  int greenButtonState = digitalRead(greenButtonPin);
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">Read if the Green button is pressed.</span>
+</span>
+
+<span class="code-line has-tooltip">  if (redButtonState == HIGH) {
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">If the Red button IS pressed...</span>
+</span>
+<span class="code-line has-tooltip">    digitalWrite(redLedPin, HIGH); // Turn Red ON
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">...turn the Red LED ON.</span>
+</span>
+<span class="code-line has-tooltip">    digitalWrite(yellowLedPin, LOW); // Turn others OFF
+</span>
+<span class="code-line has-tooltip">    digitalWrite(greenLedPin, LOW);
+</span>
+<span class="code-line has-tooltip">  } else if (yellowButtonState == HIGH) {
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">Else if the Yellow button IS pressed...</span>
+</span>
+<span class="code-line has-tooltip">    digitalWrite(redLedPin, LOW);
+</span>
+<span class="code-line has-tooltip">    digitalWrite(yellowLedPin, HIGH); // Turn Yellow ON
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">...turn the Yellow LED ON.</span>
+</span>
+<span class="code-line has-tooltip">    digitalWrite(greenLedPin, LOW);
+</span>
+<span class="code-line has-tooltip">  } else if (greenButtonState == HIGH) {
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">Else if the Green button IS pressed...</span>
+</span>
+<span class="code-line has-tooltip">    digitalWrite(redLedPin, LOW);
+</span>
+<span class="code-line has-tooltip">    digitalWrite(yellowLedPin, LOW);
+</span>
+<span class="code-line has-tooltip">    digitalWrite(greenLedPin, HIGH); // Turn Green ON
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">...turn the Green LED ON.</span>
+</span>
+<span class="code-line has-tooltip">  } else {
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">If no button is pressed, all lights turn OFF.</span>
+</span>
+<span class="code-line has-tooltip">    digitalWrite(redLedPin, LOW);
+</span>
+<span class="code-line has-tooltip">    digitalWrite(yellowLedPin, LOW);
+</span>
+<span class="code-line has-tooltip">    digitalWrite(greenLedPin, LOW);
+</span>
+<span class="code-line has-tooltip">  }
+</span>
+<span class="code-line has-tooltip">  delay(10); // Short delay to prevent rapid changes
+  <span class="tooltip absolute -mt-12 ml-4 p-2 bg-gray-900 rounded text-xs w-64 border border-slate-600">A tiny pause to make sure everything works smoothly.</span>
+</span>
+<span class="code-line has-tooltip">}
+</span>
+                </code></pre>
+            </div>
+        </section>
+
+        <!-- Original Section 5 (now Section 6): Virtual Traffic Lights Demo -->
+        <section>
+            <h2 class="text-3xl md:text-4xl font-bold text-center mb-2">Try The Traffic Lights!</h2>
+            <p class="text-center text-slate-600 mb-8">Click the buttons below to control the traffic lights manually!</p>
+            <div class="bg-white p-8 rounded-xl shadow-lg flex flex-col items-center gap-8">
+                <div class="traffic-light-housing mb-4">
+                    <div id="virtual-red-led" class="traffic-light-bulb">RED</div>
+                    <div id="virtual-yellow-led" class="traffic-light-bulb">YELLOW</div>
+                    <div id="virtual-green-led" class="traffic-light-bulb">GREEN</div>
+                </div>
+                <div class="flex gap-4">
+                    <button id="red-button-control" class="manual-control-button bg-red-500 text-white hover:bg-red-600">Red Light</button>
+                    <button id="yellow-button-control" class="manual-control-button bg-yellow-400 text-gray-900 hover:bg-yellow-500">Yellow Light</button>
+                    <button id="green-button-control" class="manual-control-button bg-green-500 text-white hover:bg-green-600">Green Light</button>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // --- Section 1: Intro Icons ---
+        const introIcons = document.querySelectorAll('.icon-card');
+        const introAnswer = document.getElementById('intro-answer');
+        let iconsClicked = 0;
+        introIcons.forEach(icon => {
+            icon.addEventListener('click', () => {
+                if (!icon.dataset.clicked) {
+                    icon.style.backgroundColor = '#d1fae5';
+                    icon.style.transform = 'scale(1.1)';
+                    icon.dataset.clicked = true;
+                    iconsClicked++;
+                }
+                if (iconsClicked === introIcons.length) {
+                    setTimeout(() => {
+                        introAnswer.textContent = 'They all use BUTTONS!';
+                    }, 500);
+                }
+            });
+        });
+
+        // --- Section 2: How a Button Works ---
+        const pushMeButton = document.getElementById('push-me-button');
+        const ledLight = document.getElementById('led-light');
+        const buttonPlunger = document.getElementById('button-plunger');
+        const movingContact = document.getElementById('moving-contact');
+        const fixedContact = document.getElementById('fixed-contact');
+
+
+        pushMeButton.addEventListener('mousedown', () => {
+            buttonPlunger.classList.add('pressed');
+            movingContact.classList.add('connected');
+            fixedContact.classList.add('connected');
+            ledLight.style.backgroundColor = '#fef08a'; // yellow-200
+            ledLight.innerHTML = '💡✨';
+        });
+
+        pushMeButton.addEventListener('mouseup', () => {
+            buttonPlunger.classList.remove('pressed');
+            movingContact.classList.remove('connected');
+            fixedContact.classList.remove('connected');
+            ledLight.style.backgroundColor = '#d1d5db'; // slate-300
+            ledLight.innerHTML = '💡';
+        });
+        
+        pushMeButton.addEventListener('mouseleave', () => { // For cases where mouse is released outside the button
+            buttonPlunger.classList.remove('pressed');
+            movingContact.classList.remove('connected');
+            fixedContact.classList.remove('connected');
+            ledLight.style.backgroundColor = '#d1d5db';
+            ledLight.innerHTML = '💡';
+        });
+
+
+        // --- NEW Section 3: Your First Button & LED! ---
+        const virtualBasicButton = document.getElementById('virtual-basic-button');
+        const virtualBasicLed = document.getElementById('virtual-basic-led');
+
+        virtualBasicButton.addEventListener('click', () => {
+            if (virtualBasicLed.classList.contains('red')) { // Using 'red' class for simple ON/OFF state
+                virtualBasicLed.classList.remove('red');
+                virtualBasicLed.style.backgroundColor = '#d1d5db'; // off state
+                virtualBasicLed.innerHTML = '<span class="text-slate-500 text-base font-semibold">OFF</span>';
+            } else {
+                virtualBasicLed.classList.add('red'); // Use 'red' class to light up
+                virtualBasicLed.style.backgroundColor = '#ef4444'; // red-500
+                virtualBasicLed.innerHTML = '<span class="text-white text-base font-semibold">ON</span>';
+            }
+        });
+
+
+        // --- Original Section 3 (now Section 4): Build the Traffic Lights Circuit ---
+        const trafficNextStepButton = document.getElementById('traffic-next-step-button');
+        const trafficInstructionDiv = document.getElementById('traffic-instructions');
+        const trafficStepImage = document.getElementById('traffic-circuit-step-image');
+        
+        const trafficSteps = [
+            {
+                instruction: "<strong>Step 1: Get Your LEDs Ready.</strong> You'll need one Red, one Yellow, and one Green LED. Remember the long leg is positive (+), and the short leg is negative (-). You'll also need three push buttons.",
+                image: "https://placehold.co/600x400/e2e8f0/475569?text=LEDs+and+Buttons+Ready"
+            },
+            {
+                instruction: "<strong>Step 2: Connect the Red LED.</strong> Place the Red LED on your breadboard. Connect its long leg (positive) through a 220 Ohm resistor to Arduino's `Pin 9`. Connect its short leg (negative) to the breadboard's `GND` rail.",
+                image: "https://placehold.co/600x400/e2e8f0/ef4444?text=Step+2:+Red+LED"
+            },
+            {
+                instruction: "<strong>Step 3: Connect the Yellow LED.</strong> Place the Yellow LED on your breadboard. Connect its long leg (positive) through a 220 Ohm resistor to Arduino's `Pin 10`. Connect its short leg (negative) to the breadboard's `GND` rail.",
+                image: "https://placehold.co/600x400/e2e8f0/facc15?text=Step+3:+Yellow+LED"
+            },
+            {
+                instruction: "<strong>Step 4: Connect the Green LED.</strong> Place the Green LED on your breadboard. Connect its long leg (positive) through a 220 Ohm resistor to Arduino's `Pin 11`. Connect its short leg (negative) to the breadboard's `GND` rail.",
+                image: "https://placehold.co/600x400/e2e8f0/22c55e?text=Step+4:+Green+LED"
+            },
+            {
+                instruction: "<strong>Step 5: Connect the Red Button.</strong> Place a button on the breadboard. Connect one side to Arduino's `5V` and the other side to Arduino's `Pin 2`. Add a 10k Ohm resistor from `Pin 2` to `GND`.",
+                image: "https://placehold.co/600x400/e2e8f0/3b82f6?text=Step+5:+Red+Button"
+            },
+            {
+                instruction: "<strong>Step 6: Connect the Yellow Button.</strong> Place another button. Connect one side to `5V` and the other to Arduino's `Pin 3`. Add a 10k Ohm resistor from `Pin 3` to `GND`.",
+                image: "https://placehold.co/600x400/e2e8f0/a855f7?text=Step+6:+Yellow+Button"
+            },
+            {
+                instruction: "<strong>Step 7: Connect the Green Button.</strong> Place the last button. Connect one side to `5V` and the other to Arduino's `Pin 4`. Add a 10k Ohm resistor from `Pin 4` to `GND`.",
+                image: "https://placehold.co/600x400/e2e8f0/6d28d9?text=Step+7:+Green+Button"
+            },
+            {
+                instruction: "<strong>Step 8: Connect Arduino Ground.</strong> Ensure a wire connects a `GND` pin on the Arduino to the `GND` rail on your breadboard. This connects all components to ground.",
+                image: "https://placehold.co/600x400/e2e8f0/1f2937?text=Step+8:+Final+GND"
+            },
+            {
+                instruction: "<strong>All Done!</strong> Your traffic light circuit with buttons is complete! Now you're ready for the code.",
+                image: "https://placehold.co/600x400/a7f3d0/166534?text=Traffic+Lights+Buttons+Complete!"
+            }
+        ];
+
+        let trafficCurrentStep = -1;
+
+        function displayTrafficStep() {
+            trafficInstructionDiv.innerHTML = ''; // Clear previous
+            trafficSteps.forEach((step, index) => {
+                const p = document.createElement('p');
+                p.innerHTML = step.instruction;
+                p.className = 'p-3 rounded-lg mb-2 transition-colors';
+                if (index === trafficCurrentStep) {
+                    p.classList.add('bg-blue-100', 'border-l-4', 'border-blue-500');
+                } else if (index < trafficCurrentStep) {
+                     p.classList.add('bg-green-100', 'text-slate-500');
+                }
+                else {
+                    p.classList.add('bg-slate-100', 'text-slate-400');
+                }
+                trafficInstructionDiv.appendChild(p);
+            });
+            
+            if (trafficCurrentStep >= 0 && trafficCurrentStep < trafficSteps.length) {
+                trafficStepImage.src = trafficSteps[trafficCurrentStep].image;
+                trafficNextStepButton.textContent = "Next Step";
+            }
+             if (trafficCurrentStep === trafficSteps.length -1) {
+                trafficNextStepButton.textContent = "Start Over";
+            }
+        }
+        
+        trafficNextStepButton.addEventListener('click', () => {
+            trafficCurrentStep++;
+            if (trafficCurrentStep >= trafficSteps.length) {
+                trafficCurrentStep = -1;
+                trafficNextStepButton.textContent = "Start Building";
+                trafficStepImage.src = "https://placehold.co/600x400/e2e8f0/475569?text=Start+Traffic+Light+Circuit";
+                 displayTrafficStep();
+                trafficCurrentStep = 0;
+            }
+            displayTrafficStep();
+        });
+        
+        displayTrafficStep(); // Initialize view
+
+        // --- Original Section 5 (now Section 6): Virtual Traffic Lights Demo (Manual Control - Click to Toggle) ---
+        const virtualRedLed = document.getElementById('virtual-red-led');
+        const virtualYellowLed = document.getElementById('virtual-yellow-led');
+        const virtualGreenLed = document.getElementById('virtual-green-led');
+
+        const redButtonControl = document.getElementById('red-button-control');
+        const yellowButtonControl = document.getElementById('yellow-button-control');
+        const greenButtonControl = document.getElementById('green-button-control');
+
+        function turnOffAllTrafficLights() {
+            virtualRedLed.classList.remove('red');
+            virtualYellowLed.classList.remove('yellow');
+            virtualGreenLed.classList.remove('green');
+        }
+
+        redButtonControl.addEventListener('click', () => {
+            turnOffAllTrafficLights();
+            virtualRedLed.classList.add('red');
+        });
+
+        yellowButtonControl.addEventListener('click', () => {
+            turnOffAllTrafficLights();
+            virtualYellowLed.classList.add('yellow');
+        });
+
+        greenButtonControl.addEventListener('click', () => {
+            turnOffAllTrafficLights();
+            virtualGreenLed.classList.add('green');
+        });
+
+        // Initialize lights off when page loads
+        turnOffAllTrafficLights();
+
+    </script>
+</body>
+</html>
+
